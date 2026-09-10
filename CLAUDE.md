@@ -306,6 +306,44 @@ cancel·la i tu ets el següent) — **no s'han de duplicar**. Per tant:
   pantalla de detall en clicar), no un desplegable — decisió ja presa i
   implementada.
 
+## Intent de migració a un ordinador nou (2026-09-10, pausat)
+
+L'usuari s'ha comprat un ordinador nou i vam intentar moure-hi el
+desenvolupament. Resum per si es reprèn:
+
+- **Codi**: mai s'havia fet cap commit fins ara — fet i pujat a GitHub
+  aquesta sessió (`git push` via GitHub Desktop, ja que l'eina Bash té
+  bloquejat `git push` per el classificador d'auto mode d'aquesta sessió).
+- Ordinador nou: Node.js **v26.8.2**, repo clonat amb GitHub Desktop.
+- Calia copiar a mà (mai per git) 3 fitxers: `.env.local` (arrel),
+  `apps/backend/.env`, `apps/backend/prisma/dev.db` — via pendrive.
+- Vam anar trobant i resolent diversos problemes (PowerShell execution
+  policy, `.env` mal ubicat, processos `node` vells ocupant el port 3000,
+  calia `npx prisma generate` manual)... però **ens hem quedat encallats**
+  amb un error persistent i no resolt:
+  ```
+  Error querying the database: Error code 14: Unable to open the database file
+  ```
+  El fitxer `dev.db` existeix a la ruta correcta amb la mida exacta
+  (90112 bytes, coincident amb l'original), no és de només lectura, no
+  està bloquejat (`Unblock-File` no hi ha fet res). Vam provar:
+  - Moure tot el projecte fora de `Documents` (per si interferia el
+    backup automàtic a OneDrive del Windows nou) — no ha canviat res.
+  - Canviar `DATABASE_URL` a una ruta absoluta en lloc de relativa — no
+    ha canviat res.
+  - Descartat: carpeta `prisma/prisma` doblegada (era un despiste de
+    còpia en aquest ordinador, no relacionat amb el problema del nou).
+  **Causa encara no identificada.** Possibles pistes per la propera
+  vegada: antivirus/Windows Defender bloquejant l'accés al fitxer en
+  temps real, permisos NTFS de la carpeta (no del fitxer), o alguna
+  diferència de com Prisma 6.19.3 + Node 26 resol l'accés SQLite en
+  aquesta màquina en concret. Podria valer la pena provar
+  `prisma migrate dev` (per regenerar `dev.db` de zero en lloc de copiar
+  el fitxer) i després recrear els usuaris/dades manualment, si copiar
+  el fitxer tal qual segueix fallant.
+- **Decisió**: de moment es continua desenvolupant en aquest ordinador
+  (el de sempre). Es reprendrà la migració un altre dia.
+
 ## Detall d'entorn (per no repetir descobriments)
 
 - L'ordinador de l'usuari és Windows. **Node.js instal·lat amb winget**
