@@ -42,12 +42,19 @@ function clearTimersFor(attemptId: string) {
   }
 }
 
-// `skipDate` (format YYYY-MM-DD) només s'ha de passar quan es crida just
-// després de resoldre un intent per aquella data concreta (per encadenar
-// la setmana següent). NO es fa servir cap escaneig de l'historial: mirar
-// si "ja hi ha algun intent resolt per aquesta data" era fràgil (dades
-// d'edicions/proves antigues per aquest mateix dia de la setmana feien
-// saltar la data real moltes setmanes endavant per error).
+// `skipDate` (format YYYY-MM-DD) només cal quan es crida just després de
+// resoldre un intent per aquella data concreta (per encadenar la setmana
+// següent en el mateix instant, abans que la BD reflecteixi el canvi).
+//
+// A més, per cada data candidata: si ja hi ha un intent RESOLT (no
+// PROGRAMADA) que coincideix amb la configuració ACTUAL del slot
+// (mateixa hora i classe) és que aquella ocurrència ja s'ha gestionat de
+// veritat (reservada, error, etc.) — avancem a la setmana següent en
+// lloc de duplicar-la. Si l'intent resolt és d'una configuració DIFERENT
+// (per exemple d'una classe que l'usuari ja ha canviat), es considera
+// historial obsolet i s'ignora — es crea un intent nou igualment (així
+// no repeteix el bug on l'historial d'una altra classe feia saltar la
+// data real moltes setmanes endavant).
 async function materializeAttemptForSlot(
   slot: ScheduleSlot,
   skipDate?: string
@@ -59,44 +66,75 @@ async function materializeAttemptForSlot(
     candidateDate = new Date(candidateDate);
     candidateDate.setDate(candidateDate.getDate() + 7);
   }
-  if (skipDate && toISODate(candidateDate) === skipDate) {
-    candidateDate = new Date(candidateDate);
-    candidateDate.setDate(candidateDate.getDate() + 7);
-  }
 
-  const targetClassDate = toISODate(candidateDate);
-  const openAt = new Date(combineDateAndTime(candidateDate, slot.time).getTime() - BOOKING_OPEN_LEAD_MS);
+  for (let i = 0; i < 6; i++) {
+    const targetClassDate = toISODate(candidateDate);
 
-  const existing = await prisma.bookingAttempt.findFirst({
-    where: { scheduleSlotId: slot.id, targetClassDate, status: "PROGRAMADA" },
-  });
+    if (skipDate && targetClassDate === skipDate) {
+      candidateDate = new Date(candidateDate);
+      candidateDate.setDate(candidateDate.getDate() + 7);
+      continue;
+    }
 
-  if (existing) {
-    if (existing.targetClassTime !== slot.time || existing.className !== slot.className) {
-      return prisma.bookingAttempt.update({
-        where: { id: existing.id },
+    const openAt = new Date(combineDateAndTime(candidateDate, slot.time).getTime() - BOOKING_OPEN_LEAD_MS);
+    const existing = await prisma.bookingAttempt.findFirst({
+      where: { scheduleSlotId: slot.id, targetClassDate },
+    });
+
+    if (!existing) {
+      return prisma.bookingAttempt.create({
         data: {
+          userId: slot.userId,
+          scheduleSlotId: slot.id,
+          targetClassDate,
           targetClassTime: slot.time,
           className: slot.className,
-          aimharderClassId: null,
+          status: "PROGRAMADA",
           openAt,
         },
       });
     }
-    return existing;
+
+    if (existing.status === "PROGRAMADA") {
+      if (existing.targetClassTime !== slot.time || existing.className !== slot.className) {
+        return prisma.bookingAttempt.update({
+          where: { id: existing.id },
+          data: {
+            targetClassTime: slot.time,
+            className: slot.className,
+            aimharderClassId: null,
+            openAt,
+          },
+        });
+      }
+      return existing;
+    }
+
+    const matchesCurrentConfig =
+      existing.targetClassTime === slot.time && existing.className === slot.className;
+    if (matchesCurrentConfig) {
+      // Ja resolt per aquesta configuració exacta: setmana següent.
+      candidateDate = new Date(candidateDate);
+      candidateDate.setDate(candidateDate.getDate() + 7);
+      continue;
+    }
+
+    // Historial obsolet (d'una altra classe/hora): l'ignorem i creem
+    // l'intent nou per a la configuració actual.
+    return prisma.bookingAttempt.create({
+      data: {
+        userId: slot.userId,
+        scheduleSlotId: slot.id,
+        targetClassDate,
+        targetClassTime: slot.time,
+        className: slot.className,
+        status: "PROGRAMADA",
+        openAt,
+      },
+    });
   }
 
-  return prisma.bookingAttempt.create({
-    data: {
-      userId: slot.userId,
-      scheduleSlotId: slot.id,
-      targetClassDate,
-      targetClassTime: slot.time,
-      className: slot.className,
-      status: "PROGRAMADA",
-      openAt,
-    },
-  });
+  return null;
 }
 
 function armTimers(attempt: BookingAttempt) {

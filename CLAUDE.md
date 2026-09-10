@@ -309,6 +309,22 @@ el compte nou i va decidir fer-ho més senzill). Implementació:
   pantalla de detall en clicar), no un desplegable — decisió ja presa i
   implementada.
 
+## Desplegament (2026-09-10, preparat, pendent que la col·laboradora ho posi al servidor)
+
+- Fitxers nous: `apps/backend/Dockerfile`, `apps/backend/.dockerignore`,
+  `docker-compose.yml` (arrel), `DEPLOY.md` (arrel, instruccions per a
+  qui gestiona el servidor). **No s'ha pogut provar el build de Docker
+  en local** (no hi ha Docker instal·lat en aquest ordinador) — validar-ho
+  quan es faci el primer desplegament real.
+- Pla: donar accés de col·laboradora al repo de GitHub a la persona que
+  porta el servidor Hetzner (l'usuari li ha de demanar l'usuari/email de
+  GitHub i afegir-la a Settings → Collaborators del repo).
+- Pendent de decidir amb ella: si hi ha domini per HTTPS (imprescindible
+  en producció, ja documentat a `DEPLOY.md`) i com transferir-li de forma
+  segura `apps/backend/.env` (MASTER_KEY, SMTP_*) i `prisma/dev.db`
+  actuals (per no perdre els usuaris/planificació/credencials AimHarder
+  ja configurats) — no s'ha de fer per xat/email en clar.
+
 ## Intent de migració a un ordinador nou (2026-09-10, pausat)
 
 L'usuari s'ha comprat un ordinador nou i vam intentar moure-hi el
