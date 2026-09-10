@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  passwordHash      String
+  mustChangePassword Boolean @default(false)
+  createdAt         DateTime @default(now())
+
+  aimharderCredential AimharderCredential?
+  scheduleSlots       ScheduleSlot[]
+  bookingAttempts     BookingAttempt[]
+  notificationLogs    NotificationLog[]
+  sessions            Session[]
+}
+
+// Sessió de login de l'app (NO té res a veure amb la sessió d'AimHarder).
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Credencials del compte d'AimHarder de l'usuari (contrasenya xifrada, no hashejada,
+// perquè cal poder-la desxifrar per fer login contra AimHarder en nom seu).
+model AimharderCredential {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aimharderEmail    String
+  encryptedPassword String
+  boxSubdomain      String
+  boxId             String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Plantilla recurrent: "cada dilluns a les 19:00 vull anar a classe".
+model ScheduleSlot {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekday   Int // 0 = diumenge ... 6 = dissabte
+  time      String // "HH:mm"
+  className String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookingAttempts BookingAttempt[]
+
+  @@unique([userId, weekday])
+}
+
+enum BookingStatus {
+  PROGRAMADA
+  INTENTANT_RESERVAR
+  RESERVADA
+  LLISTA_ESPERA
+  ERROR
+  CANCELLADA
+}
+
+// Un intent concret de reserva per a una data real (generat cada setmana
+// a partir d'un ScheduleSlot).
+model BookingAttempt {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleSlotId   String?
+  scheduleSlot     ScheduleSlot? @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
+  targetClassDate  String // "YYYY-MM-DD"
+  targetClassTime  String // "HH:mm"
+  className        String?
+  aimharderClassId String?
+  reservationId    String? // id que retorna AimHarder en reservar (cal per cancel·lar)
+  status           BookingStatus @default(PROGRAMADA)
+  openAt           DateTime
+  attemptStartedAt DateTime?
+  attemptFinishedAt DateTime?
+  resultMessage    String?
+  retriesCount     Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  notificationLogs NotificationLog[]
+}
+
+model NotificationLog {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingAttemptId String
+  bookingAttempt   BookingAttempt  @relation(fields: [bookingAttemptId], references: [id], onDelete: Cascade)
+  channel          String // "email", etc.
+  status           String // "sent" | "failed"
+  sentAt           DateTime        @default(now())
+}

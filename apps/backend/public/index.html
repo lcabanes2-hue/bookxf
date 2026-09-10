@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reserves CrossFit</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f2f1ed;
+    --card: #ffffff;
+    --text: #191816;
+    --muted: #7a766e;
+    --accent: #ff4d2e;
+    --accent-2: #ff7a4d;
+    --accent-text: #ffffff;
+    --border: #eae7e0;
+    --ok: #1f8a4c;
+    --ok-bg: #e6f6ec;
+    --warn: #b8860b;
+    --warn-bg: #fbf1dc;
+    --err: #d63a2b;
+    --err-bg: #fdeae7;
+    --shadow: 0 1px 2px rgba(25,24,22,.04), 0 8px 24px -12px rgba(25,24,22,.12);
+
+    --class-ext-bg: #e1dfd8;
+    --class-ext-border: #b2ada0;
+    --class-wod-bg: #fad2c7;
+    --class-wod-border: #e8917a;
+    --class-special-bg: #cceed9;
+    --class-special-border: #6cc48d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #171614;
+      --card: #211f1c;
+      --text: #f3f1ec;
+      --muted: #9b968c;
+      --accent: #ff5a3a;
+      --accent-2: #ff8a5c;
+      --accent-text: #171614;
+      --border: #322f2a;
+      --ok: #43c07f;
+      --ok-bg: #16301f;
+      --warn: #e0ac3a;
+      --warn-bg: #332a10;
+      --err: #ff6b57;
+      --err-bg: #3a1c17;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+
+      --class-ext-bg: #37352e;
+      --class-ext-border: #5c584d;
+      --class-wod-bg: #4a251d;
+      --class-wod-border: #a34a34;
+      --class-special-bg: #163b25;
+      --class-special-border: #3d9760;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 28px 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(155deg, var(--accent), var(--accent-2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  header h1 {
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  header .subtitle {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  main {
+    flex: 1;
+    padding: 4px 20px 48px;
+    animation: fade-in .25s ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .card > p:first-child { margin-top: 0; }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 3px;
+  }
+  label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+  label:first-of-type { margin-top: 0; }
+  input, select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M5.5 8l4.5 4.5L14.5 8' fill='none' stroke='%237a766e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+  }
+  button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px 14px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(155deg, var(--accent), var(--accent-2));
+    color: var(--accent-text);
+    font-size: 15.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+    transition: transform .08s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  button:active { transform: translateY(1px) scale(.99); }
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    box-shadow: none;
+  }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .error {
+    color: var(--err);
+    font-size: 13.5px;
+    margin-top: 10px;
+    min-height: 18px;
+    font-weight: 500;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 8px;
+    line-height: 1.45;
+  }
+  [hidden] { display: none !important; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .topbar span { color: var(--muted); font-size: 14px; }
+  .topbar strong { color: var(--text); }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13.5px;
+    font-weight: 600;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 0;
+    color: var(--muted);
+  }
+  .status-pill.ok { color: var(--ok); }
+  .status-pill.err { color: var(--err); }
+  .week-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .week-row:last-child { border-bottom: none; }
+  .week-row .day-name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 14.5px;
+  }
+  .week-row select {
+    width: auto;
+    flex: none;
+    max-width: 60%;
+    padding: 9px 30px 9px 12px;
+    font-size: 13.5px;
+  }
+  .week-row.is-off .day-name { color: var(--muted); font-weight: 600; }
+
+  .week-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    margin: 0 -2px;
+  }
+  .day-chip {
+    flex: 1 0 auto;
+    width: 62px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 4px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    text-align: center;
+  }
+  .day-chip .dow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+  .day-chip .dom {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .week-month-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: capitalize;
+    margin: 0 0 10px;
+  }
+  .day-chip .indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    margin-top: 2px;
+  }
+  .day-chip.is-set {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  }
+  .day-chip.is-set .indicator { background: var(--accent); }
+  .day-chip.is-today .dow { color: var(--accent); }
+
+  #day-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  #day-detail-header .back-btn {
+    width: auto;
+    margin: 0;
+    padding: 6px 8px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    box-shadow: none;
+  }
+  #day-detail-header .day-detail-title {
+    font-size: 15.5px;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+  .class-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14.5px;
+    text-align: left;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .class-option .time {
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .class-option .badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--ok-bg);
+    color: var(--ok);
+    flex-shrink: 0;
+  }
+  .class-option .badge.full {
+    background: var(--err-bg);
+    color: var(--err);
+  }
+  .class-option--ext {
+    background: var(--class-ext-bg);
+    border-color: var(--class-ext-border);
+  }
+  .class-option--wod {
+    background: var(--class-wod-bg);
+    border-color: var(--class-wod-border);
+  }
+  .class-option--special {
+    background: var(--class-special-bg);
+    border-color: var(--class-special-border);
+  }
+  .class-option.selected {
+    border-color: var(--accent);
+    border-width: 2px;
+    padding: 12px 13px;
+  }
+  .class-option.none-option { color: var(--muted); font-weight: 600; }
+
+  .banner-card {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  }
+  #plan-confirm-banner {
+    border: 1px solid var(--class-special-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--ok-bg);
+  }
+  #plan-confirm-banner .hint { color: var(--ok); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo-mark">🏋️</div>
+    <div>
+      <h1>Reserves CrossFit</h1>
+      <div class="subtitle">CrossFit Manresa · reserva automàtica</div>
+    </div>
+  </header>
+  <main>
+
+    <section id="view-login" class="card" hidden>
+      <p class="card-title">Entrar</p>
+      <p class="hint" style="margin-bottom:16px">Entra amb el teu compte de l'app.</p>
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="username" />
+      <label for="login-password">Contrasenya</label>
+      <input id="login-password" type="password" autocomplete="current-password" />
+      <button id="login-submit">Entrar</button>
+      <div class="error" id="login-error"></div>
+    </section>
+
+    <section id="view-change-password" class="card" hidden>
+      <p class="card-title">Primer cop per aquí</p>
+      <p class="hint" style="margin-bottom:16px">Posa't una contrasenya nova (mínim 8 caràcters).</p>
+      <label for="cp-current">Contrasenya temporal</label>
+      <input id="cp-current" type="password" autocomplete="current-password" />
+      <label for="cp-new">Contrasenya nova</label>
+      <input id="cp-new" type="password" autocomplete="new-password" />
+      <button id="cp-submit">Guardar contrasenya</button>
+      <div class="error" id="cp-error"></div>
+    </section>
+
+    <section id="view-dashboard" hidden>
+      <div class="card topbar">
+        <span id="dashboard-user"></span>
+        <button class="link-btn" id="logout-btn">Tancar sessió</button>
+      </div>
+
+      <div class="card banner-card" id="card-today-banner" hidden>
+        <p class="card-title" id="today-banner-title"></p>
+        <p class="hint" id="today-banner-body" style="margin-bottom:14px"></p>
+        <button id="today-banner-ok">Entesos</button>
+      </div>
+
+      <div class="card" id="card-aimharder-summary" hidden>
+        <div class="topbar">
+          <span class="status-pill ok">🟢 AimHarder: <strong id="aimharder-email"></strong></span>
+          <button class="link-btn" id="aimharder-change-btn">Canviar</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-aimharder-form" hidden>
+        <p class="card-title">Connecta AimHarder</p>
+        <p class="hint" style="margin-bottom:16px">El compte del teu gimnàs (no el d'aquesta app).</p>
+        <label for="ah-email">Email d'AimHarder</label>
+        <input id="ah-email" type="email" autocomplete="off" />
+        <label for="ah-password">Contrasenya d'AimHarder</label>
+        <input id="ah-password" type="password" autocomplete="off" />
+        <button id="ah-submit">Connectar</button>
+        <div class="error" id="ah-error"></div>
+      </div>
+
+      <div class="card" id="card-week" hidden>
+        <div id="week-strip-view">
+          <div class="banner-card" id="plan-confirm-banner" hidden style="margin-bottom:14px">
+            <p class="hint" id="plan-confirm-text" style="margin:0"></p>
+          </div>
+          <p class="card-title">El teu pla setmanal</p>
+          <p class="hint" style="margin-bottom:14px">
+            Toca un dia per triar la classe. Es reservarà tot sol 24 hores
+            abans, no cal fer res més.
+          </p>
+          <p class="week-month-label" id="week-month-label"></p>
+          <div class="week-strip" id="week-strip"></div>
+        </div>
+
+        <div id="day-detail-view" hidden>
+          <div id="day-detail-header">
+            <button class="back-btn" id="day-detail-back">← Setmana</button>
+            <span class="day-detail-title" id="day-detail-title"></span>
+          </div>
+          <div id="day-detail-list"></div>
+        </div>
+
+        <div class="hint" id="week-status">&nbsp;</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
