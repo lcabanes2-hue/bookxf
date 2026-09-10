@@ -274,21 +274,24 @@ cancel·la i tu ets el següent) — **no s'han de duplicar**. Per tant:
   (executar en PowerShell com a Administrador). Pendent confirmar si
   l'usuari ho ha necessitat.
 
+**✅ Fase 5 — Email real: COMPLETA i verificada** (2026-09-10). Compte
+usat: el personal de l'usuari `lluiscabanes07@gmail.com` (no se n'ha
+creat un d'exclusiu, l'usuari ho va provar però va tenir problemes creant
+el compte nou i va decidir fer-ho més senzill). Implementació:
+- `src/shared/mailer.ts`: transporter de Nodemailer (`service: "gmail"`),
+  llegeix `SMTP_USER`/`SMTP_APP_PASSWORD` de `.env`.
+- `src/modules/notifications/sender.ts`: ara envia l'email de veritat
+  (a l'email de l'app de l'usuari, `user.email`) i desa sempre el
+  `NotificationLog` amb `status: "sent"|"failed"`.
+- Dependències noves: `nodemailer`, `@types/nodemailer` (dev).
+- **Verificat amb un email real rebut per l'usuari.**
+- ⚠️ Recordatori: `.env` amb `SMTP_USER`/`SMTP_APP_PASSWORD` és local a
+  cada ordinador (gitignored) — si es repeteix la migració a l'ordinador
+  nou, cal afegir-hi aquestes dues línies també (o copiar l'`.env`
+  actualitzat un altre cop).
+
 **Pendent — pròxims passos reals**:
-1. **Fase 5 — Email real (EN CURS)**: l'usuari ha decidit crear un Gmail
-   nou EXCLUSIU per a l'app (encara no m'ha donat l'adreça ni la
-   contrasenya d'aplicació — estava creant el compte i pendent d'activar
-   la verificació en 2 passos + generar la contrasenya d'aplicació de 16
-   lletres a https://myaccount.google.com/apppasswords). Un cop tingui
-   aquestes dues dades, falta:
-   - Instal·lar `nodemailer`.
-   - Connectar `notifications/sender.ts` a Gmail SMTP real (host
-     `smtp.gmail.com`, port 465 SSL o 587 STARTTLS, usuari = email nou,
-     contrasenya = la d'aplicació de 16 lletres — guardar-la a `.env`
-     com `SMTP_USER` / `SMTP_APP_PASSWORD`, mai al codi ni al xat en
-     públic).
-   - Enviar-se un email de prova real abans de donar-ho per fet.
-2. **Vista d'historial/estat a la interfície** (🟢🟡🔴) — el backend ja té
+1. **Vista d'historial/estat a la interfície** (🟢🟡🔴) — el backend ja té
    `GET /api/booking/history` (fet aquesta sessió), però encara no hi ha
    cap pantalla al frontend que el mostri.
 
