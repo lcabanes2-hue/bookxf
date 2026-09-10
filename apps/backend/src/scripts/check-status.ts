@@ -10,9 +10,9 @@ for (const u of users) {
     console.log(`  weekday=${s.weekday} time=${s.time} className=${s.className}`);
   }
 }
-const attempts = await prisma.bookingAttempt.findMany({ orderBy: { createdAt: "desc" }, take: 10 });
-console.log("\nBookingAttempts recents:");
+const attempts = await prisma.bookingAttempt.findMany({ orderBy: { createdAt: "asc" } });
+console.log("\nTots els BookingAttempts:");
 for (const a of attempts) {
-  console.log(`  ${a.targetClassDate} ${a.targetClassTime} ${a.className} -> ${a.status} (openAt ${a.openAt.toISOString()})`);
+  console.log(`  id=${a.id} ${a.targetClassDate} ${a.targetClassTime} ${a.className} -> ${a.status} (created ${a.createdAt.toISOString()})`);
 }
 await prisma.$disconnect();
