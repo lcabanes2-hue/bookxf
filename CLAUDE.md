@@ -274,21 +274,24 @@ cancel·la i tu ets el següent) — **no s'han de duplicar**. Per tant:
   (executar en PowerShell com a Administrador). Pendent confirmar si
   l'usuari ho ha necessitat.
 
+**✅ Fase 5 — Email real: COMPLETA i verificada** (2026-09-10). Compte
+usat: el personal de l'usuari `lluiscabanes07@gmail.com` (no se n'ha
+creat un d'exclusiu, l'usuari ho va provar però va tenir problemes creant
+el compte nou i va decidir fer-ho més senzill). Implementació:
+- `src/shared/mailer.ts`: transporter de Nodemailer (`service: "gmail"`),
+  llegeix `SMTP_USER`/`SMTP_APP_PASSWORD` de `.env`.
+- `src/modules/notifications/sender.ts`: ara envia l'email de veritat
+  (a l'email de l'app de l'usuari, `user.email`) i desa sempre el
+  `NotificationLog` amb `status: "sent"|"failed"`.
+- Dependències noves: `nodemailer`, `@types/nodemailer` (dev).
+- **Verificat amb un email real rebut per l'usuari.**
+- ⚠️ Recordatori: `.env` amb `SMTP_USER`/`SMTP_APP_PASSWORD` és local a
+  cada ordinador (gitignored) — si es repeteix la migració a l'ordinador
+  nou, cal afegir-hi aquestes dues línies també (o copiar l'`.env`
+  actualitzat un altre cop).
+
 **Pendent — pròxims passos reals**:
-1. **Fase 5 — Email real (EN CURS)**: l'usuari ha decidit crear un Gmail
-   nou EXCLUSIU per a l'app (encara no m'ha donat l'adreça ni la
-   contrasenya d'aplicació — estava creant el compte i pendent d'activar
-   la verificació en 2 passos + generar la contrasenya d'aplicació de 16
-   lletres a https://myaccount.google.com/apppasswords). Un cop tingui
-   aquestes dues dades, falta:
-   - Instal·lar `nodemailer`.
-   - Connectar `notifications/sender.ts` a Gmail SMTP real (host
-     `smtp.gmail.com`, port 465 SSL o 587 STARTTLS, usuari = email nou,
-     contrasenya = la d'aplicació de 16 lletres — guardar-la a `.env`
-     com `SMTP_USER` / `SMTP_APP_PASSWORD`, mai al codi ni al xat en
-     públic).
-   - Enviar-se un email de prova real abans de donar-ho per fet.
-2. **Vista d'historial/estat a la interfície** (🟢🟡🔴) — el backend ja té
+1. **Vista d'historial/estat a la interfície** (🟢🟡🔴) — el backend ja té
    `GET /api/booking/history` (fet aquesta sessió), però encara no hi ha
    cap pantalla al frontend que el mostri.
 
@@ -305,6 +308,60 @@ cancel·la i tu ets el següent) — **no s'han de duplicar**. Per tant:
 - La interfície és la del calendari setmanal (tires de dies amb número +
   pantalla de detall en clicar), no un desplegable — decisió ja presa i
   implementada.
+
+## Desplegament (2026-09-10, preparat, pendent que la col·laboradora ho posi al servidor)
+
+- Fitxers nous: `apps/backend/Dockerfile`, `apps/backend/.dockerignore`,
+  `docker-compose.yml` (arrel), `DEPLOY.md` (arrel, instruccions per a
+  qui gestiona el servidor). **No s'ha pogut provar el build de Docker
+  en local** (no hi ha Docker instal·lat en aquest ordinador) — validar-ho
+  quan es faci el primer desplegament real.
+- Pla: donar accés de col·laboradora al repo de GitHub a la persona que
+  porta el servidor Hetzner (l'usuari li ha de demanar l'usuari/email de
+  GitHub i afegir-la a Settings → Collaborators del repo).
+- Pendent de decidir amb ella: si hi ha domini per HTTPS (imprescindible
+  en producció, ja documentat a `DEPLOY.md`) i com transferir-li de forma
+  segura `apps/backend/.env` (MASTER_KEY, SMTP_*) i `prisma/dev.db`
+  actuals (per no perdre els usuaris/planificació/credencials AimHarder
+  ja configurats) — no s'ha de fer per xat/email en clar.
+
+## Intent de migració a un ordinador nou (2026-09-10, pausat)
+
+L'usuari s'ha comprat un ordinador nou i vam intentar moure-hi el
+desenvolupament. Resum per si es reprèn:
+
+- **Codi**: mai s'havia fet cap commit fins ara — fet i pujat a GitHub
+  aquesta sessió (`git push` via GitHub Desktop, ja que l'eina Bash té
+  bloquejat `git push` per el classificador d'auto mode d'aquesta sessió).
+- Ordinador nou: Node.js **v26.8.2**, repo clonat amb GitHub Desktop.
+- Calia copiar a mà (mai per git) 3 fitxers: `.env.local` (arrel),
+  `apps/backend/.env`, `apps/backend/prisma/dev.db` — via pendrive.
+- Vam anar trobant i resolent diversos problemes (PowerShell execution
+  policy, `.env` mal ubicat, processos `node` vells ocupant el port 3000,
+  calia `npx prisma generate` manual)... però **ens hem quedat encallats**
+  amb un error persistent i no resolt:
+  ```
+  Error querying the database: Error code 14: Unable to open the database file
+  ```
+  El fitxer `dev.db` existeix a la ruta correcta amb la mida exacta
+  (90112 bytes, coincident amb l'original), no és de només lectura, no
+  està bloquejat (`Unblock-File` no hi ha fet res). Vam provar:
+  - Moure tot el projecte fora de `Documents` (per si interferia el
+    backup automàtic a OneDrive del Windows nou) — no ha canviat res.
+  - Canviar `DATABASE_URL` a una ruta absoluta en lloc de relativa — no
+    ha canviat res.
+  - Descartat: carpeta `prisma/prisma` doblegada (era un despiste de
+    còpia en aquest ordinador, no relacionat amb el problema del nou).
+  **Causa encara no identificada.** Possibles pistes per la propera
+  vegada: antivirus/Windows Defender bloquejant l'accés al fitxer en
+  temps real, permisos NTFS de la carpeta (no del fitxer), o alguna
+  diferència de com Prisma 6.19.3 + Node 26 resol l'accés SQLite en
+  aquesta màquina en concret. Podria valer la pena provar
+  `prisma migrate dev` (per regenerar `dev.db` de zero en lloc de copiar
+  el fitxer) i després recrear els usuaris/dades manualment, si copiar
+  el fitxer tal qual segueix fallant.
+- **Decisió**: de moment es continua desenvolupant en aquest ordinador
+  (el de sempre). Es reprendrà la migració un altre dia.
 
 ## Detall d'entorn (per no repetir descobriments)
 

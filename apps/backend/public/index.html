@@ -373,6 +373,30 @@
   }
   .class-option.none-option { color: var(--muted); font-weight: 600; }
 
+  .history-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .history-icon { font-size: 16px; flex-shrink: 0; }
+  .history-row .history-main { flex: 1; min-width: 0; }
+  .history-row .history-class {
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .history-row .history-date {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .history-row .history-msg {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
   .banner-card {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 8%, var(--card));
@@ -472,6 +496,12 @@
         </div>
 
         <div class="hint" id="week-status">&nbsp;</div>
+      </div>
+
+      <div class="card" id="card-history" hidden>
+        <p class="card-title">Historial</p>
+        <p class="hint" style="margin-bottom:14px">Els teus últims intents de reserva.</p>
+        <div id="history-list"></div>
       </div>
     </section>
 

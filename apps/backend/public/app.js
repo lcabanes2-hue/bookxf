@@ -62,6 +62,7 @@ async function loadDashboard() {
   const summaryCard = document.getElementById("card-aimharder-summary");
   const formCard = document.getElementById("card-aimharder-form");
   const weekCard = document.getElementById("card-week");
+  const historyCard = document.getElementById("card-history");
 
   let status;
   try {
@@ -75,12 +76,80 @@ async function loadDashboard() {
     summaryCard.hidden = false;
     formCard.hidden = true;
     weekCard.hidden = false;
+    historyCard.hidden = false;
     loadWeek();
     loadTodayBanner();
+    loadHistory();
   } else {
     summaryCard.hidden = true;
     formCard.hidden = false;
     weekCard.hidden = true;
+    historyCard.hidden = true;
+  }
+}
+
+const STATUS_ICON = {
+  RESERVADA: "🟢",
+  LLISTA_ESPERA: "🟡",
+  ERROR: "🔴",
+  CANCELLADA: "⚪",
+};
+const STATUS_LABEL = {
+  RESERVADA: "Reservada",
+  LLISTA_ESPERA: "Llista d'espera",
+  ERROR: "Error",
+  CANCELLADA: "Cancel·lada",
+};
+
+async function loadHistory() {
+  const list = document.getElementById("history-list");
+  list.innerHTML = "";
+
+  let history;
+  try {
+    history = await api("/api/booking/history");
+  } catch {
+    return;
+  }
+
+  if (history.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "Encara no hi ha cap reserva feta.";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const item of history) {
+    const row = document.createElement("div");
+    row.className = "history-row";
+
+    const icon = document.createElement("span");
+    icon.className = "history-icon";
+    icon.textContent = STATUS_ICON[item.status] ?? "⚪";
+
+    const main = document.createElement("div");
+    main.className = "history-main";
+
+    const className = document.createElement("div");
+    className.className = "history-class";
+    className.textContent = item.className ?? "Classe";
+
+    const date = document.createElement("div");
+    date.className = "history-date";
+    date.textContent = `${item.targetClassDate} · ${item.targetClassTime} · ${STATUS_LABEL[item.status] ?? item.status}`;
+
+    main.append(className, date);
+
+    if (item.resultMessage && item.status === "ERROR") {
+      const msg = document.createElement("div");
+      msg.className = "history-msg";
+      msg.textContent = item.resultMessage;
+      main.appendChild(msg);
+    }
+
+    row.append(icon, main);
+    list.appendChild(row);
   }
 }
 

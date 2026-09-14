@@ -1,0 +1,10 @@
+services:
+  backend:
+    build: ./apps/backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/backend/.env
+    volumes:
+      - ./apps/backend/prisma/dev.db:/app/prisma/dev.db
