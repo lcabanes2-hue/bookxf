@@ -22,7 +22,9 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Dades de login no vàlides" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+    const user = await prisma.user.findUnique({
+      where: { email: parsed.data.email.toLowerCase() },
+    });
     const ok = user && verifyPassword(parsed.data.password, user.passwordHash);
     if (!ok || !user) {
       return reply.code(401).send({ error: "Email o contrasenya incorrectes" });
