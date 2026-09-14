@@ -363,6 +363,41 @@ desenvolupament. Resum per si es reprèn:
 - **Decisió**: de moment es continua desenvolupant en aquest ordinador
   (el de sempre). Es reprendrà la migració un altre dia.
 
+## Desplegament real a Hetzner i bug de login del pare (2026-09-14)
+
+El repositori ja s'ha posat al servidor d'Hetzner (la col·laboradora que
+el gestiona n'ha donat la URL). Dos problemes detectats en la primera
+prova real:
+
+1. **Una reserva de prova no es va fer** ("no em va reservar") — encara
+   **pendent d'investigar**, no s'ha arribat a diagnosticar aquesta
+   sessió. Possibles pistes per la propera vegada: comprovar si el
+   desplegament ha seguit `DEPLOY.md` sencer (en particular si s'ha
+   copiat el `dev.db` amb la planificació/usuaris existents, i si l'hora
+   de la prova era realment dins la finestra de 24h abans de la classe),
+   i mirar els logs del contenidor Docker al servidor.
+2. **El pare (Francesc) no podia entrar** amb email i contrasenya —
+   error `401 Email o contrasenya incorrectes` (confirmat que és un
+   rebuig real de credencials, no el problema de cookie `secure` sense
+   HTTPS ja documentat a `DEPLOY.md`, ja que només li passava a ell i no
+   a l'usuari amb la mateixa URL). Causa més probable: la contrasenya
+   temporal `Xc9J1cRl` té una "1" i una "l" fàcils de confondre en
+   escriure-la a mà, i/o l'email introduit amb majúscules diferents de
+   com està desat (`lafamiliaflam@gmail.com`, tot minúscules).
+   **Fix aplicat** (commit `cae70c3`):
+   - [routes.ts](apps/backend/src/modules/auth/routes.ts): el login ara
+     compara l'email en minúscules (`.toLowerCase()`) abans de buscar
+     l'usuari, així no importa com l'escrigui l'usuari.
+   - [index.html](apps/backend/public/index.html): el camp d'email del
+     login porta `autocapitalize="off" autocorrect="off" spellcheck="false"`
+     perquè el mòbil no hi posi mai una majúscula automàtica.
+   - **Solució inmediata donada** (mentre no es redesplega): demanar a la
+     col·laboradora que executi al servidor
+     `npx tsx src/scripts/reset-password.ts --email="lafamiliaflam@gmail.com" --password="crossfit247avi"`
+     (contrasenya nova sense caràcters ambigus 1/l/I/O/0).
+   - **Pendent de confirmar**: si després d'aquest fix + contrasenya nova
+     el pare ja pot entrar.
+
 ## Detall d'entorn (per no repetir descobriments)
 
 - L'ordinador de l'usuari és Windows. **Node.js instal·lat amb winget**
