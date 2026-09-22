@@ -369,13 +369,23 @@ El repositori ja s'ha posat al servidor d'Hetzner (la col·laboradora que
 el gestiona n'ha donat la URL). Dos problemes detectats en la primera
 prova real:
 
-1. **Una reserva de prova no es va fer** ("no em va reservar") — encara
-   **pendent d'investigar**, no s'ha arribat a diagnosticar aquesta
-   sessió. Possibles pistes per la propera vegada: comprovar si el
-   desplegament ha seguit `DEPLOY.md` sencer (en particular si s'ha
-   copiat el `dev.db` amb la planificació/usuaris existents, i si l'hora
-   de la prova era realment dins la finestra de 24h abans de la classe),
-   i mirar els logs del contenidor Docker al servidor.
+1. **Una reserva de prova no es va fer** ("no em va reservar") — **causa
+   identificada i arreglada (2026-09-22)**: el contenidor Docker no tenia
+   zona horària configurada. `dates.ts`/`engine.ts` calculen l'hora de
+   classe (p.ex. "18:30") amb `Date.setHours()`, que és sempre hora LOCAL
+   del procés de Node. En local (Windows, Espanya) això és hora espanyola
+   correcta; al servidor Hetzner, la imatge `node:22-slim` per defecte va
+   en UTC, així que "18:30" es calculava com 18:30 UTC = 20:30 hora
+   espanyola (horari d'estiu, UTC+2) — tot el scheduler quedava desplaçat
+   2h, disparant la reserva molt després que s'obrís de veritat.
+   **Fix**: `TZ=Europe/Madrid` afegit a
+   [Dockerfile](apps/backend/Dockerfile) (`ENV TZ=Europe/Madrid` a
+   l'etapa `runtime`) i a [docker-compose.yml](docker-compose.yml)
+   (`environment: - TZ=Europe/Madrid`), més una nota a
+   [DEPLOY.md](DEPLOY.md) avisant que cal `docker compose up -d --build`
+   (reconstruir de debò, no `restart`) perquè s'apliqui. **Pendent**:
+   demanar a la col·laboradora que faci `git pull` + rebuild al servidor
+   i confirmar amb una prova real que ara reserva a l'hora correcta.
 2. **El pare (Francesc) no podia entrar** amb email i contrasenya —
    error `401 Email o contrasenya incorrectes` (confirmat que és un
    rebuig real de credencials, no el problema de cookie `secure` sense

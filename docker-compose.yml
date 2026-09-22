@@ -6,5 +6,7 @@ services:
       - "3000:3000"
     env_file:
       - ./apps/backend/.env
+    environment:
+      - TZ=Europe/Madrid
     volumes:
       - ./apps/backend/prisma/dev.db:/app/prisma/dev.db

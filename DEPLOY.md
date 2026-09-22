@@ -36,3 +36,15 @@ docker compose up -d --build
 ```
 
 El fitxer `dev.db` és un volum muntat directament (no viu dins la imatge), així que sobreviu als reinicis i actualitzacions del contenidor.
+
+## Zona horària (important)
+
+El scheduler calcula els horaris de classe ("18:30") en l'hora local del
+**procés de Node**, no en UTC ni en l'hora del box explícitament. El
+Dockerfile i el `docker-compose.yml` fixen `TZ=Europe/Madrid` perquè el
+contenidor calculi sempre l'hora real d'Espanya, sigui quin sigui el
+servidor. Si s'actualitza el codi (`git pull` + `docker compose up -d
+--build`) cal assegurar-se que la imatge es reconstrueix de debò (no
+`docker compose restart`, que no aplica canvis del Dockerfile), altrament
+el contenidor pot seguir corrent en UTC i les reserves es dispararan a
+l'hora equivocada (a l'estiu, 2h tard; a l'hivern, 1h tard).
