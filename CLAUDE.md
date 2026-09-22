@@ -386,6 +386,47 @@ prova real:
    (reconstruir de debò, no `restart`) perquè s'apliqui. **Pendent**:
    demanar a la col·laboradora que faci `git pull` + rebuild al servidor
    i confirmar amb una prova real que ara reserva a l'hora correcta.
+
+   **Validat en local el mateix dia (2026-09-22)** amb una reserva 100%
+   real per als dos usuaris (WOD de dimecres 18:30, marcat el dimarts a
+   les 18:17, disparat sol a les 18:30:00): el fix de zona horària
+   funciona. Però la prova va destapar dues coses més:
+   - **Bug real trobat**: AimHarder pot respondre `bookState: 0` (que
+     nosaltres interpretàvem sempre com "reservada de veritat") encara
+     que en realitat t'hagi posat a la llista d'espera real — confirmat
+     amb un email real d'AimHarder ("En lista de espera para WOD...")
+     rebut pels dos usuaris tot i que el nostre sistema deia "🟢 Reserva
+     confirmada". Investigat el codi del projecte de referència
+     `fitbot-mcp`: té exactament la mateixa limitació, no distingeixen
+     els dos casos — no és un error nostre, és que AimHarder no ho
+     exposa de manera fiable a la resposta de `/api/book`. Passa quan la
+     classe ja estava plena de gent real abans que s'obrís per
+     nosaltres (aquell dia el WOD de les 18:30 tenia aforament "14 (4)":
+     14 places + 4 de cua, i vam agafar dues places de la cua).
+     **Fix aplicat** a
+     [engine.ts](apps/backend/src/modules/scheduler/engine.ts)
+     (`finishAttempt`): ara **sempre** s'envia el nostre email de
+     resultat (abans només per LLISTA_ESPERA/ERROR, confiant que
+     AimHarder ja avisava prou bé per RESERVADA — fals, com hem vist).
+     El missatge per "RESERVADA" avisa explícitament que cal comprovar
+     l'app d'AimHarder si la classe ja estava plena.
+   - **Optimització de velocitat** (perquè costi menys acabar a la
+     cua): abans, `runBookingProcess` feia login + consulta de classes
+     JUSTA a l'obrir-se la reserva, cosa que retardava la primera
+     petició real de reserva 1-3 segons respecte a l'obertura exacta —
+     temps de sobra perquè altra gent es quedi les últimes places.
+     Afegit `prepareAttempt()` amb un nou timer que fa login i resol
+     l'id de la classe **8 segons abans** (`PREP_LEAD_MS`), deixant-ho
+     en memòria; `runBookingProcess` ara ho reutilitza i la primera
+     petició que arriba a AimHarder just a l'obrir-se és directament la
+     de reservar. Si la preparació falla per qualsevol motiu, cau de
+     nou al comportament anterior (login+consulta en el moment).
+   - De passada, arreglat un bug pre-existent (no relacionat, però
+     detectat fent `npx tsc --noEmit` per primer cop en aquesta sessió)
+     que feia que `npm run build` fallés per un error de tipus a
+     `engine.ts` quan `lastBookState` és `null` — el missatge d'error
+     es guardava com a `false` en lloc del text per defecte. Sense
+     aquest fix, el rebuild de Docker de la col·laboradora hauria fallat.
 2. **El pare (Francesc) no podia entrar** amb email i contrasenya —
    error `401 Email o contrasenya incorrectes` (confirmat que és un
    rebuig real de credencials, no el problema de cookie `secure` sense

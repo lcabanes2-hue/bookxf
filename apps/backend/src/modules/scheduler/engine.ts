@@ -21,9 +21,23 @@ const RETRY_BURST_MS = 20 * 1000; // finestra de reintents un cop obre
 const RETRY_INTERVAL_MS = 300;
 const MISSED_GRACE_MS = 10 * 60 * 1000; // si ens hem passat més d'això, no ho intentem tard
 const RESYNC_INTERVAL_MS = 30 * 60 * 1000;
+// Fem login i busquem l'id de la classe uns segons ABANS que obri, perquè
+// a l'obrir de veritat l'única petició de xarxa que calgui fer sigui la
+// de reservar. Sense això, el primer intent no arribava a AimHarder fins
+// 1-3s després de l'obertura real (temps de login + consulta de classes),
+// temps de sobra perquè altra gent es quedi les últimes places.
+const PREP_LEAD_MS = 8 * 1000;
 
 const bookTimers = new Map<string, NodeJS.Timeout>();
 const reminderTimers = new Map<string, NodeJS.Timeout>();
+const prepTimers = new Map<string, NodeJS.Timeout>();
+
+interface PreparedBooking {
+  cookies: string;
+  boxSubdomain: string;
+  classId: number;
+}
+const preparedAttempts = new Map<string, PreparedBooking>();
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,6 +53,46 @@ function clearTimersFor(attemptId: string) {
   if (reminderTimer) {
     clearTimeout(reminderTimer);
     reminderTimers.delete(attemptId);
+  }
+  const prepTimer = prepTimers.get(attemptId);
+  if (prepTimer) {
+    clearTimeout(prepTimer);
+    prepTimers.delete(attemptId);
+  }
+  preparedAttempts.delete(attemptId);
+}
+
+// Fa login i resol l'id de la classe amb antelació, i ho deixa en memòria
+// perquè runBookingProcess el pugui fer servir directament. És només una
+// optimització de velocitat: si falla per qualsevol motiu, runBookingProcess
+// ho torna a fer tot des de zero com abans.
+async function prepareAttempt(attemptId: string) {
+  try {
+    const attempt = await prisma.bookingAttempt.findUnique({ where: { id: attemptId } });
+    if (!attempt || attempt.status !== "PROGRAMADA") return;
+
+    const credential = await prisma.aimharderCredential.findUnique({ where: { userId: attempt.userId } });
+    if (!credential) return;
+
+    const login = await loginToAimharder(credential.aimharderEmail, decryptSecret(credential.encryptedPassword));
+    const classes = await getClassesForDay(
+      login.cookies,
+      login.boxSubdomain,
+      credential.boxId,
+      toAimharderDay(attempt.targetClassDate)
+    );
+    const match = classes.find(
+      (c) => c.time.startsWith(attempt.targetClassTime) && c.className === attempt.className
+    );
+    if (!match) return;
+
+    preparedAttempts.set(attemptId, {
+      cookies: login.cookies,
+      boxSubdomain: login.boxSubdomain,
+      classId: match.id,
+    });
+  } catch (err) {
+    console.error(`Error preparant per endavant l'attempt ${attemptId}:`, err);
   }
 }
 
@@ -149,6 +203,12 @@ function armTimers(attempt: BookingAttempt) {
       attempt.id,
       setTimeout(() => runBookingProcess(attempt.id), openAtMs - now)
     );
+
+    const prepAtMs = openAtMs - PREP_LEAD_MS;
+    prepTimers.set(
+      attempt.id,
+      setTimeout(() => prepareAttempt(attempt.id), Math.max(0, prepAtMs - now))
+    );
   } else if (now - openAtMs <= RETRY_BURST_MS + MISSED_GRACE_MS) {
     bookTimers.set(attempt.id, setTimeout(() => runBookingProcess(attempt.id), 0));
   } else {
@@ -215,34 +275,49 @@ export async function runBookingProcess(attemptId: string) {
     return;
   }
 
-  let cookies: string;
-  let boxSubdomain: string;
-  try {
-    const login = await loginToAimharder(credential.aimharderEmail, decryptSecret(credential.encryptedPassword));
-    cookies = login.cookies;
-    boxSubdomain = login.boxSubdomain;
-  } catch (err) {
-    await finishAttempt(attempt.id, "ERROR", `No s'ha pogut iniciar sessió a AimHarder: ${message(err)}`, 0);
-    return;
-  }
-
   const aimharderDay = toAimharderDay(attempt.targetClassDate);
 
+  let cookies: string;
+  let boxSubdomain: string;
   let classId: number;
-  try {
-    const classes = await getClassesForDay(cookies, boxSubdomain, credential.boxId, aimharderDay);
-    const match = classes.find(
-      (c) => c.time.startsWith(attempt.targetClassTime) && c.className === attempt.className
-    );
-    if (!match) {
-      await finishAttempt(attempt.id, "ERROR", "No s'ha trobat aquesta classe al calendari d'AimHarder d'aquell dia", 0);
+
+  // Si prepareAttempt() ja ha fet login i ha trobat l'id de la classe uns
+  // segons abans (cas normal), ens estalviem aquestes dues peticions just
+  // ara i anem directes a reservar. Si no hi és (arrencada del servidor a
+  // mitja finestra, prep ha fallat, etc.), ho fem tot des de zero com abans.
+  const prepared = preparedAttempts.get(attempt.id);
+  preparedAttempts.delete(attempt.id);
+
+  if (prepared) {
+    cookies = prepared.cookies;
+    boxSubdomain = prepared.boxSubdomain;
+    classId = prepared.classId;
+    await prisma.bookingAttempt.update({ where: { id: attempt.id }, data: { aimharderClassId: String(classId) } });
+  } else {
+    try {
+      const login = await loginToAimharder(credential.aimharderEmail, decryptSecret(credential.encryptedPassword));
+      cookies = login.cookies;
+      boxSubdomain = login.boxSubdomain;
+    } catch (err) {
+      await finishAttempt(attempt.id, "ERROR", `No s'ha pogut iniciar sessió a AimHarder: ${message(err)}`, 0);
       return;
     }
-    classId = match.id;
-    await prisma.bookingAttempt.update({ where: { id: attempt.id }, data: { aimharderClassId: String(classId) } });
-  } catch (err) {
-    await finishAttempt(attempt.id, "ERROR", `Error consultant classes: ${message(err)}`, 0);
-    return;
+
+    try {
+      const classes = await getClassesForDay(cookies, boxSubdomain, credential.boxId, aimharderDay);
+      const match = classes.find(
+        (c) => c.time.startsWith(attempt.targetClassTime) && c.className === attempt.className
+      );
+      if (!match) {
+        await finishAttempt(attempt.id, "ERROR", "No s'ha trobat aquesta classe al calendari d'AimHarder d'aquell dia", 0);
+        return;
+      }
+      classId = match.id;
+      await prisma.bookingAttempt.update({ where: { id: attempt.id }, data: { aimharderClassId: String(classId) } });
+    } catch (err) {
+      await finishAttempt(attempt.id, "ERROR", `Error consultant classes: ${message(err)}`, 0);
+      return;
+    }
   }
 
   let retries = 0;
@@ -289,7 +364,9 @@ export async function runBookingProcess(attemptId: string) {
     await finishAttempt(
       attempt.id,
       finalStatus,
-      finalStatus === "RESERVADA" ? "Reserva confirmada" : "A la llista d'espera (la classe estava plena)",
+      finalStatus === "RESERVADA"
+        ? "Reserva feta. AimHarder no sempre distingeix una plaça confirmada d'una entrada a la llista d'espera en aquest primer pas: si la classe ja estava plena, comprova-ho a l'app o al correu d'AimHarder per assegurar-te."
+        : "A la llista d'espera (la classe estava plena)",
       retries
     );
   } else {
@@ -299,7 +376,7 @@ export async function runBookingProcess(attemptId: string) {
       [-7]: "S'ha reservat massa tard (la finestra ja havia tancat)",
     };
     const msg =
-      (lastBookState !== null && messages[lastBookState]) ??
+      (lastBookState !== null ? messages[lastBookState] : undefined) ??
       "No s'ha pogut confirmar la reserva dins el temps disponible";
     await finishAttempt(attempt.id, "ERROR", msg, retries);
   }
@@ -323,20 +400,22 @@ async function finishAttempt(
     data: { status, resultMessage: message, retriesCount: retries, attemptFinishedAt: new Date() },
   });
 
-  // Quan la reserva surt directa (RESERVADA), AimHarder ja envia el seu
-  // propi email de confirmació — no cal duplicar-ho. En canvi LLISTA_ESPERA
-  // i ERROR són coses que AimHarder no explica (o que mai arriben a passar
-  // pel seu costat), així que sí que avisem nosaltres.
-  if (status !== "RESERVADA") {
-    const subject = status === "LLISTA_ESPERA" ? "🟡 A la llista d'espera" : "🔴 Error reservant";
-    await sendNotification({
-      userId: attempt.userId,
-      bookingAttemptId: attempt.id,
-      channel: "result",
-      subject,
-      body: `${attempt.className ?? "Classe"} del ${attempt.targetClassDate} a les ${attempt.targetClassTime}: ${message}`,
-    });
-  }
+  // Abans només avisàvem per LLISTA_ESPERA/ERROR (per RESERVADA es confiava
+  // en l'email propi d'AimHarder). Descobert que AimHarder pot respondre
+  // "reservada" (bookState 0/1) encara que en realitat hagis entrat a la
+  // llista d'espera real (classes amb aforament + cua, p.ex. "14 (4)") —
+  // no ho distingeix de manera fiable, i cap projecte de la comunitat ho
+  // té resolt tampoc. Per no deixar mai ningú sense avís, ara enviem
+  // sempre el nostre email, també quan sembla "RESERVADA".
+  const subject =
+    status === "RESERVADA" ? "🟢 Reserva feta" : status === "LLISTA_ESPERA" ? "🟡 A la llista d'espera" : "🔴 Error reservant";
+  await sendNotification({
+    userId: attempt.userId,
+    bookingAttemptId: attempt.id,
+    channel: "result",
+    subject,
+    body: `${attempt.className ?? "Classe"} del ${attempt.targetClassDate} a les ${attempt.targetClassTime}: ${message}`,
+  });
 }
 
 function message(err: unknown): string {
