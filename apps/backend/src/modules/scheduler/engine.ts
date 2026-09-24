@@ -361,12 +361,20 @@ export async function runBookingProcess(attemptId: string) {
       where: { id: attempt.id },
       data: { reservationId },
     });
+    // Comprovat amb dos casos reals (2026-09-22 i 2026-09-24): bookState=1
+    // ha estat sempre plaça confirmada de veritat, mentre que bookState=0
+    // una vegada va resultar ser en realitat llista d'espera (AimHarder no
+    // ho diferencia bé a la resposta de /api/book). Encara no és una regla
+    // 100% provada, així que només suavitzem l'avís quan bookState=1 i el
+    // mantenim quan és 0.
+    const reservadaMessage =
+      lastBookState === 1
+        ? "Reserva confirmada."
+        : "Reserva feta. AimHarder no sempre distingeix una plaça confirmada d'una entrada a la llista d'espera en aquest primer pas: si la classe ja estava plena, comprova-ho a l'app o al correu d'AimHarder per assegurar-te.";
     await finishAttempt(
       attempt.id,
       finalStatus,
-      finalStatus === "RESERVADA"
-        ? "Reserva feta. AimHarder no sempre distingeix una plaça confirmada d'una entrada a la llista d'espera en aquest primer pas: si la classe ja estava plena, comprova-ho a l'app o al correu d'AimHarder per assegurar-te."
-        : "A la llista d'espera (la classe estava plena)",
+      finalStatus === "RESERVADA" ? reservadaMessage : "A la llista d'espera (la classe estava plena)",
       retries
     );
   } else {
