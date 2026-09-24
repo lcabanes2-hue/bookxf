@@ -427,6 +427,21 @@ prova real:
      `engine.ts` quan `lastBookState` és `null` — el missatge d'error
      es guardava com a `false` en lloc del text per defecte. Sense
      aquest fix, el rebuild de Docker de la col·laboradora hauria fallat.
+
+   **Segona prova real en local (2026-09-24, WOD divendres 17:30,
+   marcat a les 17:19)**: la preparació prèvia ha funcionat molt bé —
+   `attemptStartedAt`/`attemptFinishedAt` només 1 segon de diferència
+   (abans eren 3s), reservat al primer intent (`retries=1`). Aquest cop
+   `bookState` va tornar **`1`** (no `0`) i **ha estat plaça real
+   confirmada de veritat** (verificat per l'usuari a l'app/correu
+   d'AimHarder) — encaixa amb la hipòtesi que `bookState=1` és fiable i
+   `bookState=0` és el cas ambigu que pot amagar llista d'espera (vist
+   el 22/09). Amb aquests dos punts de dades reals, s'ha afinat el
+   missatge a `finishAttempt`: quan `bookState=1` diu "Reserva
+   confirmada" sense l'avís; quan `bookState=0` manté l'avís de "podries
+   ser a la llista d'espera, comprova-ho". Encara és una mostra petita
+   (n=2) — si en una propera prova real `bookState=1` resultés ser
+   llista d'espera, caldria revisar aquesta hipòtesi.
 2. **El pare (Francesc) no podia entrar** amb email i contrasenya —
    error `401 Email o contrasenya incorrectes` (confirmat que és un
    rebuig real de credencials, no el problema de cookie `secure` sense
