@@ -15,10 +15,13 @@ ENV NODE_ENV=production
 # la zona horària del box (Espanya) perquè el scheduler dispari les
 # reserves a l'hora real correcta, sigui quin sigui el servidor.
 ENV TZ=Europe/Madrid
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/public ./public
 COPY package.json ./
+RUN mkdir -p /app/prisma && chown -R node:node /app
+USER node
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/server.js"]

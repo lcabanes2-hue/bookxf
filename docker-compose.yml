@@ -3,10 +3,16 @@ services:
     build: ./apps/backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3001:3000"
     env_file:
       - ./apps/backend/.env
     environment:
       - TZ=Europe/Madrid
     volumes:
       - ./apps/backend/prisma/dev.db:/app/prisma/dev.db
+    networks:
+      - bookxf-internal
+
+networks:
+  bookxf-internal:
+    driver: bridge
